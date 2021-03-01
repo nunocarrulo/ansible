@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../pythontrg"
+		},
+		{
+			"path": "../Vmware"
+		}
+	],
+	"settings": {}
+}

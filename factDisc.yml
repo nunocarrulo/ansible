@@ -1,0 +1,8 @@
+---
+- name: Show facts
+  hosts: kdc-ucsm
+  connection: local
+  tasks:
+    - name: Print facts
+      debug:
+        var: ansible_facts

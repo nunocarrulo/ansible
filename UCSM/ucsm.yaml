@@ -1,0 +1,307 @@
+---
+- name: Setup Service-Profile template 'nbras' and Associate to Server Pool
+  connection: local
+  hosts: ucsm
+  gather_facts: False
+  vars:
+    ucsm_login: &ucsm_login 
+      hostname: '{{ ucsm_host }}'
+      username: '{{ ucsm_user }}'
+      password: '{{ ucsm_pwd}}'
+  vars_files:
+    #- vars/vault.yml
+    - vars/sp.yml
+    - vars/ucsMngObj.yml
+
+  tasks:  
+    # - name: Add UCS Organization
+    #   cisco.ucs.ucs_org:
+    #     <<: *ucsm_login
+    #     org_name: nbras
+    #     description: Test Org
+    #     state: '{{ org_state }}'
+    #     delegate_to: localhost
+
+# =============== NETWORK ====================
+    - name:  Configure MAC pool A
+      cisco.ucs.ucs_mac_pool:
+        <<: *ucsm_login
+        name: '{{ macPoolA }}'
+        first_addr: '{{ MAC_A_start }}'
+        last_addr: '{{ MAC_A_end }}'
+        order: sequential
+        state: '{{ MAC_state }}'
+
+    - name: Configure MAC pool B
+      cisco.ucs.ucs_mac_pool:
+        <<: *ucsm_login
+        name: '{{ macPoolB }}'
+        first_addr: '{{ MAC_B_start }}'
+        last_addr: '{{ MAC_B_end }}'
+        order: sequential
+        state: '{{ MAC_state }}'
+
+    - name:  Configure IP pool
+      cisco.ucs.ucs_ip_pool:
+        <<: *ucsm_login
+        name: '{{ ipPool }}'
+        ipv4_blocks:
+        - first_addr: '{{ ipPool_start }}'
+          last_addr: '{{ ipPool_end }}'
+          subnet_mask: '{{ ipPool_mask }}'
+          default_gw: '{{ ipPool_DG }}'
+        state: '{{ ipPool_state }}'
+  
+    - name:  Configure VLANs
+      cisco.ucs.ucs_vlans:
+        <<: *ucsm_login
+        name: '{{ item | string }}'
+        id: '{{ item | string }}'
+        state: '{{ vlans_state }}'
+      loop: '{{ vlan_ilist }}'
+
+    # - name: Configure VLAN-Group
+    #   cisco.ucs.ucs_vlan_to_group:
+    #     <<: *ucsm_login
+    #     vlangroup: '{{ vlanG_name }}'
+    #     vlanname: default
+    #     state: '{{ vlanG_state }}'
+
+    - name: Configure VLAN-Group
+      cisco.ucs.ucs_vlan_to_group:
+        <<: *ucsm_login
+        vlangroup: '{{ vlanG_name }}'
+        vlanname: '{{ item | string }}'
+        state: '{{ vlanG_state }}'
+      loop: '{{ vlanGroup_list }}'
+    
+    - name: Configure vNIC template A
+      cisco.ucs.ucs_vnic_template:
+        <<: *ucsm_login
+        name: '{{ vnicPri }}'
+        fabric: A
+        mac_pool: '{{ macPoolA }}'
+        #redundancy_type: primary
+        #peer_redundancy_template: '{{ vnicSec }}'
+        template_type: updating-template
+        vlans_list: '{{ vlan_dict }}'
+        state: '{{ vnicTempl_state }}'
+    
+    - name: Configure vNIC template B
+      cisco.ucs.ucs_vnic_template:
+        <<: *ucsm_login
+        name: '{{ vnicSec }}'
+        fabric: B
+        mac_pool: '{{ macPoolB }}'
+        #redundancy_type: secondary
+        #peer_redundancy_template: '{{ vnicPri }}'
+        template_type: updating-template
+        vlans_list: '{{ vlan_dict }}'
+        state: '{{ vnicTempl_state }}'
+    
+    - name:  Configure LAN Con Policy
+      cisco.ucs.ucs_lan_connectivity:
+        <<: *ucsm_login
+        name: '{{ lcp_name }}'
+        vnic_list:
+        - name: eth0
+          vnic_template: '{{ vnicPri }}'
+          adapter_policy: VMWare
+        - name: eth1
+          vnic_template: '{{ vnicSec }}'
+          adapter_policy: VMWare
+        state: '{{ lcp_state }}'
+
+# =============== SAN / Storage =====================
+    - name: Configure Disk Group Policy
+      cisco.ucs.ucs_disk_group_policy:
+        <<: *ucsm_login
+        name: '{{ diskGPol_name }}'
+        raid_level: stripe
+        configuration_mode: automatic
+        state: '{{ diskGPol_state }}'
+
+    - name: Configure Storage Profile
+      cisco.ucs.ucs_storage_profile:
+        <<: *ucsm_login
+        name: '{{ stProf_name }}'
+        local_luns:
+        - name: Boot-LUN
+          size: '200'
+          expand_to_avail: 'no'  
+          disk_policy_name: '{{ diskGPol_name }}'
+    
+    - name: Configure WWNN/WWPN 
+      cisco.ucs.ucs_wwn_pool:
+        <<: *ucsm_login
+        name: '{{ WWNNPool }}'
+        purpose: node
+        first_addr: '{{ WWNN_start }}'
+        last_addr: '{{ WWNN_end }}'
+        state: '{{ WWN_state }}'
+    - name: Configure WWPN A
+      cisco.ucs.ucs_wwn_pool:
+        <<: *ucsm_login
+        name: '{{ WWPNPoolA }}'
+        purpose: port
+        order: sequential
+        first_addr: '{{ WWPN_A_start }}'
+        last_addr: '{{ WWPN_A_end }}'
+        state: '{{ WWN_state }}'
+    - name: Configure WWPN B
+      cisco.ucs.ucs_wwn_pool:
+        <<: *ucsm_login
+        name: '{{ WWPNPoolB }}'
+        purpose: port
+        order: sequential
+        first_addr: '{{ WWPN_B_start }}'
+        last_addr: '{{ WWPN_B_end }}'
+        state: '{{ WWN_state }}'
+    
+    - name: Configure vHBA template A
+      cisco.ucs.ucs_vhba_template:
+        <<: *ucsm_login
+        name: '{{ vHBA_A }}'
+        fabric: A
+        vsan: default
+        wwpn_pool: '{{ WWPNPoolA }}'
+        #template_type: updating-template
+        #redundancy_type: primary
+        state: '{{ vHBA_state }}'
+
+    - name: Configure vHBA template B
+      cisco.ucs.ucs_vhba_template:
+        <<: *ucsm_login
+        name: '{{ vHBA_B }}'
+        fabric: B
+        vsan: default
+        wwpn_pool: '{{ WWPNPoolB }}'
+        #template_type: updating-template
+        #redundancy_type: secondary
+        state: '{{ vHBA_state }}'
+
+    - name: Configure SAN Con Policy
+      cisco.ucs.ucs_san_connectivity:
+        <<: *ucsm_login
+        name: '{{ scp_name }}'
+        wwnn_pool: '{{ WWNNPool }}'
+        vhba_list:
+        - name: fc0
+          vhba_template: '{{ vHBA_A }}'
+          adapter_policy: VMWare
+        - name: fc1
+          vhba_template: '{{ vHBA_B }}'
+          adapter_policy: VMWare
+        state: '{{ scp_state }}'
+    
+# =============== Server Policies ========================
+    - name: Configure Boot Policy
+      ucs_managed_objects:
+        <<: *ucsm_login
+        objects: "{{ item.objects }}"
+        state: '{{ bp_state }}'
+        #when: item.objects is defined
+      with_items: "{{ ucs_boot_policies }}"
+    
+    - name: Add Server Maint Policy
+      cisco.ucs.ucs_server_maintenance:
+        <<: *ucsm_login
+        name: '{{ mp_name }}'
+        uptime_disr: user-ack
+        trigger_config: on-next-boot
+        state: '{{ mp_state }}'
+
+    - name: Configure Host Firmware Packages
+      include_role:
+        name: CiscoUcs.ucs/servers/host_firmware_packages
+      vars:
+        ucs_hostname: '{{ ucsm_host }}'
+        ucs_username: '{{ ucsm_user }}'
+        ucs_password: '{{ ucsm_pwd }}'
+        ucs_state: '{{ hfp_state }}'
+    
+    - name: Configure Server Pools
+      include_role:
+        name: CiscoUcs.ucs/servers/server_pools
+      vars:
+        ucs_hostname: '{{ ucsm_host }}'
+        ucs_username: '{{ ucsm_user }}'
+        ucs_password: '{{ ucsm_pwd }}'
+        ucs_state: '{{ srvPool_state }}'
+    
+    - name: Configure UUID address pool
+      cisco.ucs.ucs_uuid_pool:
+        <<: *ucsm_login
+        name: '{{ UUID_name }}'
+        order: sequential
+        first_uuid: '{{ UUID_start }}'
+        last_uuid: '{{ UUID_end }}'
+        state: '{{ UUID_state }}'
+
+    - name: Configure vMedia Policy
+      ucs_managed_objects:
+        <<: *ucsm_login
+        objects: "{{ item.objects }}"  
+        state: '{{ vMedia_state }}'
+      #when: item.objects is defined
+      with_items: "{{ ucs_vmedia_policies }}"
+    
+#=============== Service Profile Creation & Association ======================== 
+    - name: Configure SP Template
+      cisco.ucs.ucs_service_profile_template:
+        <<: *ucsm_login
+        name: '{{ spt_name }}'
+        description:  Warning - SP Templ may be deleted/created multiple times.
+        template_type: updating-template
+        uuid_pool: '{{ UUID_name }}'
+        mgmt_ip_pool: '{{ ipPool }}'
+        mgmt_ip_state: pooled
+        storage_profile: '{{ stProf_name }}'
+        lan_connectivity_policy: '{{ lcp_name }}'
+        san_connectivity_policy: '{{ scp_name }}'
+        boot_policy: '{{ bp_name }}'
+        maintenance_policy: '{{ mp_name }}'
+        host_firmware_package: '{{ hfp_name }}'
+        server_pool: '{{ srvPool_name }}'
+        vmedia_policy: '{{ vMediaPolName }}'
+        state: '{{ spt_state }}'
+        #bios_policy: Docker
+    
+    - name: Configure SP from Template
+      cisco.ucs.ucs_service_profile_from_template:
+        <<: *ucsm_login
+        #name: '{{ item }}'
+        name: '{{ sp_name }}'
+        source_template: '{{ spt_name }}'
+      #loop: '{{ sp_list }}'
+
+    - name: Associate SP w/server pool
+      cisco.ucs.ucs_service_profile_association:
+        <<: *ucsm_login
+        service_profile_name: '{{ sp_name }}'
+        server_assignment: pool
+        server_pool_name: '{{ srvPool_name }}'
+        restrict_migration: 'yes'
+        #server_assignment: server
+        #server_dn: sys/chassis-1/blade-1
+      #register: result
+      #until: result.assign_state == 'assigned' and result.assoc_state == 'associated'
+      #retries: 3
+      #delay: 1500
+
+    # - name: Configure Port Channels
+    #     ucs_managed_objects:
+    #       <<: *ucsm_login
+    #       objects: "{{ item.objects }}"
+    #     when: item.objects is defined
+    #     with_items: "{{ ucs_port_channels }}"
+    
+    # - name: Debug
+    #   ansible.builtin.debug:
+    #     msg:  '{{ vMediaName[1] }}'
+    #     #msg: "{{ vlan_dict }}"
+    #   when: debug == True
+    
+
+      
+        

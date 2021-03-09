@@ -1,0 +1,30 @@
+---
+# Get server Moids
+- name: Debug test playbook
+  hosts: "{{ group | default('Intersight_HX') }}"
+  connection: local
+  gather_facts: false
+
+  tasks:
+    - name: Get server Moid
+      vars:
+        # Create an anchor for api_info that can be used throughout the file
+        api_info: &api_info
+          api_private_key: "{{ api_private_key }}"
+          api_key_id: "{{ api_key_id }}"
+          api_uri: "{{ api_uri | default(omit) }}"
+          validate_certs: "{{ validate_certs | default(omit) }}"
+          state: "{{ state | default(omit) }}"
+      cisco.intersight.intersight_info:
+        <<: *api_info
+        server_names:
+          - "{{ item }}"
+      loop: "{{ hx_servers }}"
+      register: inventory
+      
+    - name: All Inventory
+      debug: 
+        msg: "{{ inventory }}"
+    - name: Each item
+      debug: 
+        msg: "{{ inventory.hx_servers }}"

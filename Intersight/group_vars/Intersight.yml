@@ -1,0 +1,11 @@
+---
+ansible_python_interpreter: auto_silent
+validate_certs: false
+#api_uri: https://bsv-hx-13-iva.bsv-hx.local/api/v1
+#api_key_id: 6037dcf47564612d30520d75/6037e4467564612d3052407d/6044cf267564612d3033f70d
+#api_private_key: /Users/nbras/.ssh/SecretKeyESAppliance.txt
+#inventory_file: /Users/nbras/devnet/AnsibleProjs/HXIntersight/intersight-ansible/myinventory
+
+api_uri: https://intersight.com/api/v1
+api_key_id: 5fce62f97564612d3325561e/5fce62f97564612d33255623/6044eeb87564612d3230e898
+api_private_key: /Users/nbras/.ssh/SecretKeynbras.txt

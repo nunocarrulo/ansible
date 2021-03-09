@@ -1,0 +1,64 @@
+# ---
+# debug: True
+# org_name: default
+
+# # HX Cluster Profile
+# hx_cluster_name: bsv-hx-13
+# hx_cluster_profile: {{hx_cluster_name}}-cluster-profile
+# hx_mgmt_ip: 
+# hx_mgmt_mac_prefix: 
+# hx_data_vlan_id: 
+# #hx_mgmt_platform: 
+# #hx_hypervisor_type: ESXi
+# hxdp_version: 
+
+# #DNS
+# hx_sys_config_timezone: 
+# hx_sys_config_dns_servers: [""]
+# hx_sys_config_ntp_servers: [""]
+# hx_sys_config_dns_domain: 
+
+# #Local Credentials
+# hx_local_credential_policy: {{hx_cluster_name}}-local-credential-policy
+# hx_hypervisor_admin: root
+# hx_hypervisor_factory_password: true
+# #hx_hypervisor_password: 
+# #hx_dp_root_password: 
+
+# #vCenter
+# hx_vcenter_hostname: {{hx_cluster_name}}-vc.bsv-hx.local
+# hx_vcenter_username: administrator@vsphere.local
+# hx_vcenter_datacenter: 
+# #hx_vcenter_password: 
+
+# #Cluster Storage & Network
+# # hx_vdi_optimization: false
+# # hx_disk_cleanup: false
+# hx_cluster_network_policy: 
+# hx_jumbo_frames: 
+# hx_mac_start:
+# hx_mac_end: 
+# hx_mgmt_vlan_id: 
+# hx_uplink_speed: 
+
+# #Auto Support & Proxy
+# # hx_auto_support_enable: True
+# # hx_auto_support_receipient: nbras@cisco.com
+# #hx_proxy_setting_policy: bsv-hx-13-hx_proxy_setting_policy
+# #hx_proxy_setting_port: 80
+# #hx_proxy_setting_hostname proxy.esl.cisco.com
+
+# #Node Config
+# hx_node_profile_prefix: {{hx_cluster_name}}
+# esx_mgmt_ip_start: 
+# esx_mgmt_ip_end: 
+# hx_mgmt_netmask: 
+# hx_mgmt_gateway: 
+# hx_mgmt_vm_ip_start: 
+# hx_mgmt_vm_ip_end: 
+# hx_mgmt_netmask: 
+# hx_mgmt_gateway: 
+
+# hx_servers:
+#   - C240-WZP24150FR8
+#   - C240-WZP24150FS5

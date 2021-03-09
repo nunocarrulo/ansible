@@ -1,0 +1,14 @@
+all:
+  children:
+    ucsm: 
+      hosts:
+        myucspe:
+          ucsm_host: 10.48.51.135
+          ucsm_user: ucspe
+          ucsm_pwd: ucspe
+          ansible_python_interpreter: auto_silent
+        kdc-ucsm:
+          ucsm_host: 10.62.130.4
+          ucsm_user: admin
+          ucsm_pwd: cisco!123
+          ansible_python_interpreter: auto_silent

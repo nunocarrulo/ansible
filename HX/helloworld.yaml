@@ -1,0 +1,11 @@
+---
+#- name: Hello World
+- hosts: "{{ cluster_name }}"
+  connection: local
+  gather_facts: false
+  vars_files:
+    - group_vars/eurostorage.yml
+  tasks:
+    - name: Hello World Cluster Lists
+      debug:
+        msg: "Hello World {{ cluster_name }}"

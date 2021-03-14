@@ -1,0 +1,8 @@
+---
+ucsm_host: bsv-6248-hx-1.cisco.com
+ucsm_user: admin
+
+vc_host: bsv-hx-1-vc.cisco.com
+vc_admin: administrator@vsphere.local
+vc_datacenter: bsv-hx-1
+vc_cluster: bsv-hx-1

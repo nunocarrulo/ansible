@@ -1,0 +1,10 @@
+---
+#ansible_python_interpreter: auto_silent
+ucsm_host: bsv-6454-hx-9.cisco.com
+ucsm_user: admin
+
+#vc_host: bsv-hx-9-vc.bsv-hx.local
+vc_host: 172.16.0.29
+vc_admin: administrator@vsphere.local
+vc_datacenter: bsv-hx-9
+vc_cluster: bsv-hx-9

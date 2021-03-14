@@ -1,0 +1,8 @@
+---
+cimc_hosts: bsv-220m5-hx-8-[1-3]-cimc.cisco.com
+cimc_user: admin
+
+vc_host: bsv-hx-8-vc.bsv-hx.local
+vc_admin: administrator@vsphere.local
+vc_datacenter: bsv-hx-8
+vc_cluster: bsv-hx-8

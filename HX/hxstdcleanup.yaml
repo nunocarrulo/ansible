@@ -1,0 +1,297 @@
+---
+- name: Cleanup Hyperflex Cluster {{ cluster_name }}
+  connection: local
+  hosts: "{{ cluster_name }}"
+  gather_facts: False
+  vars:
+    ucsm_login: &ucsm_login 
+      hostname: '{{ ucsm_host }}'
+      username: '{{ ucsm_user }}'
+      password: '{{ ucsm_pwd}}'
+  vars_files:
+    - group_vars/hx_clusters.yml
+    - group_vars/cleanupsp.yml
+  vars_prompt:
+    - name: "cluster_name"
+      prompt: "Which Standard cluster would you like to deploy ? \nCluster list: {{ stdClusterList }} \n"
+      #confirm: yes
+      private: no
+      unsafe: no
+
+  tasks:  
+    - name: Debug Cluster selection block
+      block:
+        - name: Verify if HX cluster is Standard
+          fail: 
+            msg: "Cluster {{ cluster_name }} is not a standard cluster! Aborting..."
+          when: cluster_name not in stdClusterList
+        - name: Debug Selected Cluster(s)
+          debug:
+            msg: "Cluster name: {{ cluster_name }} and UCSM FQDN: {{ ucsm_host }}"
+      tags: ["clusterSel"]
+
+    - name: Block Query Org and existing Service-Profiles
+      block:
+        - name: Query Org
+          cisco.ucs.ucs_query:
+            <<: *ucsm_login
+            class_ids: orgOrg
+          register: orgresult
+
+        - name: Obtain all Servers
+          cisco.ucs.ucs_query:
+            <<: *ucsm_login
+            class_ids: computeItem
+          register: hxservers
+
+        # - name: Associate TEST Cleanup SPs
+        #   debug:
+        #     msg: "{{ item.key}} : {{item.value }}"
+        #     #msg: "{{ comboSPDN }}"
+        #   with_dict: item
+        #   loop: "{{ comboSPDN }}"
+        #   delegate_to: "{{ worker }}"
+
+        - name: Obtain existing HX SPs
+          cisco.ucs.ucs_query:
+            <<: *ucsm_login
+            class_ids: lsServer
+          register: hx_SPs
+
+        - name: Set SP List to Disassociate
+          set_fact:
+            disassocSPList: "{{ disassocSPList | default([]) + [item.name] }}"
+          when: hx_SPs is defined and item.assign_state == 'assigned' #and item.assoc_state == 'associated'
+          loop: "{{ hx_SPs.objects.lsServer }}"
+
+        - name: Query SP Names
+          debug:
+            msg: 
+              - "-> Existing SP {{ disassocSPList }}"
+              - "-> Cleanup SP Names {{ cleanup_splist }}"
+      tags: ["query"]
+        
+    - name: Add Cleanup Organization
+      cisco.ucs.ucs_org:
+        <<: *ucsm_login
+        org_name: cleanup
+        description: Test Org
+        state: '{{ org_state }}'
+      tags: ["org"]
+
+# =============== NETWORK ====================
+    - name:  Configure MAC pool
+      cisco.ucs.ucs_mac_pool:
+        <<: *ucsm_login
+        org_dn: "{{ org_dn }}"
+        name: '{{ macPool }}'
+        first_addr: '{{ MAC_start }}'
+        last_addr: '{{ MAC_end }}'
+        state: '{{ MAC_state }}'
+      tags: ['network']
+
+    - name: Configure vNIC template
+      cisco.ucs.ucs_vnic_template:
+        <<: *ucsm_login
+        org_dn: "{{ org_dn }}"
+        name: '{{ cleanup_vnic }}'
+        mac_pool: '{{ macPool }}'
+        template_type: updating-template
+        state: '{{ vnicTempl_state }}'
+      tags: ['network']
+
+    - name:  Configure LAN Con Policy
+      cisco.ucs.ucs_lan_connectivity:
+        <<: *ucsm_login
+        org_dn: "{{ org_dn }}"
+        name: '{{ lcp_name }}'
+        vnic_list:
+        - name: eth0
+          vnic_template: '{{ cleanup_vnic }}'
+        state: '{{ lcp_state }}'
+      tags: ['network']
+
+# =============== Server Policies ========================
+    - name:  Configure IP pool   
+      cisco.ucs.ucs_ip_pool:
+        <<: *ucsm_login
+        org_dn: "{{ org_dn }}"
+        name: '{{ ipPool }}'
+        ipv4_blocks:
+        - first_addr: '{{ ipPool_start }}'
+          last_addr: '{{ ipPool_end }}'
+          subnet_mask: '{{ ipPool_mask }}'
+          default_gw: '{{ ipPool_DG }}'
+        state: '{{ ipPool_state }}'
+      tags: ['serverPol']
+
+    - name: Configure UUID address pool
+      cisco.ucs.ucs_uuid_pool:
+        <<: *ucsm_login
+        org_dn: "{{ org_dn }}"
+        name: '{{ UUID_name }}'
+        order: sequential
+        first_uuid: '{{ UUID_start }}'
+        last_uuid: '{{ UUID_end }}'
+        state: '{{ UUID_state }}'
+      tags: ['serverPol']
+
+    - name: Configure Boot Policy
+      ucs_managed_objects:
+        <<: *ucsm_login
+        objects: "{{ item.objects }}"
+        state: '{{ bp_state }}'
+        #when: item.objects is defined
+      #no_log: "{{ noLog }}"
+      with_items: "{{ ucs_boot_policies }}"
+      tags: ['serverPol']
+
+    - name: Configure vMedia Policy
+      ucs_managed_objects:
+        <<: *ucsm_login
+        objects: "{{ item.objects }}"
+        state: '{{ vMedia_state }}'
+      no_log: "{{ noLog }}"
+      #when: item.objects is defined
+      with_items: "{{ ucs_vmedia_policies }}"
+      tags: ['serverPol']
+
+    #=============== Template & Service Profile Creation & Association ======================== 
+    - name: Configure Cleanup SP Template
+      cisco.ucs.ucs_service_profile_template:
+        <<: *ucsm_login
+        org_dn: "{{ org_dn }}"
+        name: '{{ spt_name }}'
+        description:  Cleanup Template
+        template_type: updating-template
+        uuid_pool: '{{ UUID_name }}'
+        mgmt_ip_pool: '{{ ipPool }}'
+        mgmt_ip_state: pooled
+        lan_connectivity_policy: '{{ lcp_name }}'
+        boot_policy: '{{ bp_name }}'
+        vmedia_policy: '{{ vMediaPolName }}'
+        state: '{{ spt_state }}'
+      tags: ["sptemplate"]
+
+    - name: Configure Cleanup SPs from Template
+      cisco.ucs.ucs_service_profile_from_template:
+        <<: *ucsm_login
+        org_dn: "{{ org_dn }}"
+        name: '{{ item }}'
+        #name: '{{ sp_name }}'
+        source_template: '{{ spt_name }}'
+      loop: '{{ cleanup_splist }}'
+      tags: ["spconfig"]
+
+    - name: Disassociate HX SPs 
+      cisco.ucs.ucs_service_profile_association:
+        <<: *ucsm_login
+        org_dn: "{{ hx_org_dn }}"
+        service_profile_name: '{{ item }}'
+        state: absent
+      register: disassocRes
+      loop: "{{ disassocSPList }}"
+      when: disassocSPList is defined
+      until: disassocRes.assign_state == 'unassigned' and disassocRes.assoc_state == 'unassociated' 
+      tags: ["spdisassoc"]
+
+    # - name: Waiting for all Servers to complete SP Disassociation (every 2min) # retries every 2min, for 1h
+    #   cisco.ucs.ucs_query:
+    #     <<: *ucsm_login
+    #     #class_ids: computeItem #"{{ item.dn }}"
+    #     distinguished_names: "{{ item }}"
+    #   register: res
+    #   when: cleanup_dnlist is defined
+    #   until:  assocState  == 'none'
+    #   loop: "{{ cleanup_dnlist }}"
+    #   retries: 120
+    #   delay: 10
+    #   delegate_to: "{{ worker }}"
+    #   tags: ["spdisassoc2"]
+    
+    # - name: Printing
+    #   debug:
+    #     msg: 
+    #       #- "{{ res.objects  }}" #"{{ item  }}"
+    #       - "{{ assocState }}" 
+    #   until: assocState  == 'none'
+    #   when: cleanup_dnlist is defined
+    #   #loop: "{{ cleanup_dnlist }}"
+    #   tags: ["spdisassoc2"]
+
+    - name: Associate Cleanup SPs
+      cisco.ucs.ucs_service_profile_association:
+        <<: *ucsm_login
+        org_dn: "{{ org_dn }}"
+        service_profile_name: '{{ item.key }}'
+        server_assignment: server
+        server_dn: "{{ item.value }}"
+      register: assocRes
+      with_dict: item
+      loop: "{{ comboSPDN }}"
+      #until: assocRes.assign_state == 'assigned' and assocRes.assoc_state == 'associated'
+      #retries: 40
+      #delay: 300
+      tags: ["spassoc"]
+
+    - name: Waiting for all Servers to complete Cleanup SP Association # retries every 5min, for 2h
+      cisco.ucs.ucs_query:
+        <<: *ucsm_login
+        class_ids: computeItem
+      register: hxservers 
+      when: hxservers is defined
+      loop: "{{ hxservers.objects.computeItem }}"
+      until:  item.association == 'associated'
+      retries: 24     
+      delay: 300
+      tags: ["spassoc"]
+
+    - name: Printing
+      debug:
+        msg: 
+          #- "{{ res.objects  }}" #"{{ item  }}"
+          - "{{ assocState }}" 
+      until: assocState  == 'none'
+      when: cleanup_dnlist is defined
+      #loop: "{{ cleanup_dnlist }}"
+      tags: ["spdisassoc2"]
+
+    # - name: Debug SP Association
+    #   debug:
+    #     msg: SP Template "{{ spassoc }}"
+    #   delegate_to: "{{ worker }}"
+    #   tags: ["spassoc"]
+
+##### Create a delay to give enough time for ESXi installation
+    - name: Pausing for Association and ESXi Installation
+      pause: 
+        prompt: "Make sure all ESXi are installed before proceeding!"
+        minutes: 120
+      tags: ["install"]
+
+    - name: Remove Cleanup Organization
+      cisco.ucs.ucs_org:
+        <<: *ucsm_login
+        org_name: "{{ org_name }}"
+        state: absent
+      tags: ["remCleanupOrg"]
+
+    # To enable at the end
+    # - name: Remove Hyperflex {{ hx_org_name }} Organization
+    #   cisco.ucs.ucs_org:
+    #     <<: *ucsm_login
+    #     org_name: "{{ hx_org_name }}"
+    #     state: absent
+    #   tags: ["remHXOrg"]
+
+# Delete the cluster from vCenter
+    - name: Delete Cluster {{ cluster_name }}
+      community.vmware.vmware_cluster:
+        hostname: "{{ vc_host }}"
+        username: "{{ vc_admin }}"
+        password: "{{ vc_pwd }}"
+        datacenter_name: "{{ vc_datacenter }}"
+        cluster_name: "{{ vc_cluster }}"
+        state: absent
+      when: vc_host is defined
+      tags: ["vc"]

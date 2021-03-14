@@ -31,6 +31,7 @@
         last_addr: '{{ MAC_A_end }}'
         order: sequential
         state: '{{ MAC_state }}'
+      tags: ['network']
 
     - name: Configure MAC pool B
       cisco.ucs.ucs_mac_pool:
@@ -202,6 +203,7 @@
         state: '{{ bp_state }}'
         #when: item.objects is defined
       with_items: "{{ ucs_boot_policies }}"
+      tags: ["bootPol"]
     
     - name: Add Server Maint Policy
       cisco.ucs.ucs_server_maintenance:

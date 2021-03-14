@@ -1,0 +1,54 @@
+---
+- hosts:  "{{ cluster_name }}"
+  connection: local
+  gather_facts: false
+  vars_files:
+    - group_vars/eurostorage.yml
+  vars_prompt:
+    - name: "cluster_name"
+      prompt: "Which cluster would you like to deploy ? \nCluster list: {{ cluster_list }} \n"
+      #prompt: "What type of cluster would you like to delete (Edge / Standard) ?"
+      #confirm: yes
+      private: no
+      unsafe: no
+
+  tasks:
+    - name: Debug Cluster Lists
+      debug:
+        msg: "Cluster List {{ cluster_list }} \n Standard Clusters: {{ stdClusterList }} \n Edge Clusters {{ edgeClusterList }} "
+      tags: ["debug"]
+    
+    - name: Debug Selected Cluster(s)
+      debug:
+        msg: "Cluster name: {{ cluster_name }}"
+      tags: ["debug"]
+
+    - name: Debug Clean up Standard Cluster
+      debug:
+        msg: "Standard cluster {{ cluster_name }} found!"
+      when: cluster_name in stdClusterList
+      tags: ["debug"]
+
+    - name: Clean up Edge Cluster
+      debug:
+        msg: "Edge cluster {{ cluster_name }} found!"
+      when: cluster_name in edgeClusterList
+      tags: ["debug"]
+    
+# - hosts: bsv-hx-5
+#   connection: local
+#   gather_facts: false
+#   tasks:
+#     - name: Debug Selected Cluster(s)
+#       debug:
+#         msg: "Cluster name: {{ cluster_name }}"
+#       tags: ["debug"] 
+  
+- import_playbook: helloworld.yaml  
+  #vars:
+  #  cluster_name: "{{ cluster_name }}"
+  # when: cluster_name in stdClusterList 
+      
+    
+  
+

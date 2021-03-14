@@ -1,0 +1,31 @@
+---
+#cluster_name: "{{ selCluster.user_input }}"
+#cluster_list:
+  # - bsv-hx-1
+  # - bsv-hx-2
+  # - bsv-hx-3
+  # - bsv-hx-4
+  # - bsv-hx-5
+  # - bsv-hx-6
+  # - bsv-hx-7
+  # - bsv-hx-8
+  # - bsv-hx-9
+  # - bsv-hx-10
+  # - bsv-hx-11
+  # - bsv-hx-12
+  # - bsv-hx-13
+
+ucsm_user: admin
+# To delete and use hxvault
+ucsm_pwd: SVCisc0123!   
+vc_pwd: SVCisc0123!
+
+ansible_python_interpreter: auto_silent
+worker: '10.48.64.20'
+cluster_list: >
+  [ {% for n in range(1,14) %} 'bsv-hx-{{ n }}' ,{% endfor %} ] 
+
+stdClusterList: "{{ cluster_list | difference(edgeClusterList) }}"
+edgeClusterList:
+    - bsv-hx-8
+    - bsv-hx-13

@@ -1,0 +1,142 @@
+debug: True
+ansible_python_interpreter: auto_silent
+noLog: True
+org_state: present    #Organization
+org_name: cleanup 
+org_dn: org-root/org-cleanup
+
+hx_org_name: "{{ orgresult.objects.orgOrg[1].name }}"
+hx_org_dn: "{{ orgresult.objects.orgOrg[1].dn }}"
+
+#IP Pool
+ipPool_state: present
+ipPool: cleanup_IPPool
+ipPool_start: 10.48.64.164
+ipPool_end:   10.48.64.174
+ipPool_mask: 255.255.255.0
+ipPool_DG: 10.48.64.1
+
+#MAC, VNIC & LAN Connectivity Policy
+MAC_state: present
+macPool: cleanup_MAC
+MAC_start: 00:25:B5:FA:D0:00
+MAC_end:   00:25:B5:FA:D0:2F
+vnicTempl_state: present
+cleanup_vnic: cleanup_vnic
+lcp_state: present
+lcp_name: cleanup_LCP
+
+#Server Policies
+bp_state: present
+bp_name: cleanup-bp
+UUID_state: present
+UUID_name: cleanup_UIDPool
+UUID_start: 0000-123000000001
+UUID_end: 0000-123000000048
+
+#vMedia Details
+vMedia_state: present
+vMediaPolName: cleanup_vMedia
+vMediaName: ['LNX','Win']
+vMediaProt: ['http','http']
+vMediaIP: ['10.48.51.141', '10.48.37.170']
+vMediaPath: ['files','/']
+#vMediaFname: hxnb_esxi.iso
+vMediaFname: HXnb-ESXi-6.7U3-16316930-Cisco-Custom-6.7.3.5-install-only.iso
+
+# SP Template & SP Association
+spt_state: present
+spt_name: cleanup_template
+#sp_name: clean_sp
+#sp_remove: clean_sp
+#sp_list: ['cleanup1', 'cleanup2', 'cleanup3']
+
+disassocSPList: []
+cleanup_splist: >
+ [ {% for sp in hxservers.objects.computeItem %} 'cleanup-{{ sp.serial }}' ,{% endfor %} ] 
+cleanup_dnlist: >
+ [ {% for server in hxservers.objects.computeItem %} '{{ server.dn }}' ,{% endfor %} ] 
+#cleanup_dnlist: "{{ cleanup_splist | replace('cleanup-','') }}"
+comboSPDN: "{{ dict(cleanup_splist | zip(cleanup_dnlist)) }}"
+
+assocState: >
+  {% for k,v in res.objects.items() -%} 
+        '{{ v.association }}'
+  {% endfor %}
+
+ucs_vmedia_policies:
+- objects:
+  - {
+        "module": "ucsmsdk.mometa.cimcvmedia.CimcvmediaMountConfigPolicy",
+        "class": "CimcvmediaMountConfigPolicy",
+        "properties": {
+            "parent_mo_or_dn": "{{ org_dn }}",
+            "name": "{{ vMediaPolName }}"
+        },
+        "children": [
+            {
+                "module": "ucsmsdk.mometa.cimcvmedia.CimcvmediaConfigMountEntry",
+                "class": "CimcvmediaConfigMountEntry",
+                "properties": {
+                    "device_type": "cdd",
+                    "image_file_name": "{{ vMediaFname }}",
+                    "image_path": "{{ vMediaPath[0] }}",
+                    "mapping_name": "{{ vMediaName[0] }}",
+                    "mount_protocol": "{{ vMediaProt[0] }}",
+                    "remote_ip_address": "{{ vMediaIP[0] }}",
+                    "remap_on_eject": "no"
+                },
+            }
+        ]
+    }
+
+ucs_boot_policies:
+- objects:
+  - {
+        "module": "ucsmsdk.mometa.lsboot.LsbootPolicy",
+        "class": "LsbootPolicy",
+        "properties": {
+            "parent_mo_or_dn": "{{ org_dn }}",
+            "boot_mode": "legacy",
+            "enforce_vnic_name": "no",
+            "name": "{{ bp_name }}",
+            "reboot_on_update": "no"
+        },
+        "children": [
+            {
+                "module": "ucsmsdk.mometa.lsboot.LsbootVirtualMedia",
+                "class": "LsbootVirtualMedia",
+                "properties": {
+                    "access": "read-only-local",
+                    "lun_id": "0",
+                    "order": "2"
+                }
+            },
+            {
+                "module": "ucsmsdk.mometa.lsboot.LsbootVirtualMedia",
+                "class": "LsbootVirtualMedia",
+                "properties": {
+                    "access": "read-only-remote-cimc",
+                    "lun_id": "0",
+                    "order": "1"
+                }
+            },
+            {
+                "module": "ucsmsdk.mometa.lsboot.LsbootStorage",
+                "class": "LsbootStorage",
+                "properties": {
+                    "order": "3"
+                },
+                "children": [
+                    {
+                        "module": "ucsmsdk.mometa.lsboot.LsbootLocalStorage",
+                        "class": "LsbootLocalStorage",
+                        "properties": {},
+                        "children": [
+                            {
+                                "module": "ucsmsdk.mometa.lsboot.LsbootLocalHddImage",
+                                "class": "LsbootLocalHddImage",
+                                "properties": {
+                                    "order": "3",
+                                }, 
+                            } ] } ] } ] }

@@ -1,0 +1,228 @@
+debug: True
+org_state: present    #Organization
+
+ucsm_user: admin
+ucsm_pwd: cisco!123
+
+#IP Pool
+ipPool_state: present
+ipPool: nbras_IPPool
+ipPool_start: 10.62.130.26
+ipPool_end:   10.62.130.30
+ipPool_mask: 255.255.255.128
+ipPool_DG: 10.62.130.1
+
+# MAC Address
+MAC_state: present
+macPoolA: nbras_MAC_A
+MAC_A_start: 00:25:B5:00:0A:00
+MAC_A_end:   00:25:B5:00:0A:FF
+
+macPoolB: nbras_MAC_B
+MAC_B_start: 00:25:B5:00:0A:00
+MAC_B_end:   00:25:B5:00:0A:FF
+
+#VLANs & VLAN Group
+vlans_state: present
+vlan_ilist: '{{ range(100,105) | list + [130] }}'  
+#vlan_slist: ['100','101','102','103','104','105','130'] 
+vlan_dict: >
+  [ {% for vlan in vlan_ilist %} { 'name' : {{ vlan }} },{% endfor %} ]
+
+vlanG_state: present
+vlanG_name: nbras-VG
+vlanGroup_list: '{{ vlan_ilist }}'
+
+#VNIC Template
+vnicTempl_state: present
+vnicPri: nbras_vnicA
+vnicSec: nbras_vnicB 
+
+#LAN & SAN Connectivity Policy
+lcp_state: present
+lcp_name: nbras_LCP
+scp_state: present
+scp_name: nbras_SCP
+stProf_name: nbras-StProf
+diskGPol_name: nbras-diskPol
+diskGPol_state: present
+
+# WWNN/WWPN Addresses
+WWN_state: present
+WWNNPool: nbras_wwnn
+WWNN_start: 20:00:00:25:b5:00:10:00
+WWNN_end:   20:00:00:25:B5:00:10:FF
+
+WWPNPoolA: nbras_wwpn_A
+WWPN_A_start: 20:00:00:25:b5:00:2A:00
+WWPN_A_end:   20:00:00:25:b5:00:2A:FF
+WWPNPoolB: nbras_wwpn_B
+WWPN_B_start: 20:00:00:25:b5:00:2B:00
+WWPN_B_end:   20:00:00:25:b5:00:2B:FF
+
+#vHBA Template
+vHBA_state: present
+vHBA_A : nbras_A
+vHBA_B : nbras_B
+
+#Server Policies
+bp_state: present
+bp_name: nbras-bp
+mp_state: present
+mp_name: nbras_Ack
+srvPool_state: present
+srvPool_name: nbras_srvPool
+UUID_state: present
+UUID_name: UUID_Pool
+UUID_start: 0000-000000000001
+UUID_end: 0000-000000000064
+
+#vMedia Details
+vMedia_state: present
+vMediaPolName: nbras_vMedia
+vMediaName: ['LNX','Win']
+vMediaProt: ['http','http']
+vMediaIP: ['10.48.51.141', '10.48.37.170']
+vMediaPath: ['files','/']
+vMediaFname: ESXi_6.7.0_13006603_custom_nb_6.7.2.1.iso
+#vMediaFname: VMware_ESXi_6.7.0_13006603_Custom_Cisco_6.7.2.1.iso
+
+#HFP
+hfp_name: nbras_4.04i
+hfp_state: present
+
+# SP Template & SP Association
+spt_state: present
+spt_name: nbras_template
+sp_name: nbras_sp
+sp_list: ['nbras_sp1', 'nbras_sp2']
+
+ucs_vmedia_policies:
+- objects:
+  - {
+        "module": "ucsmsdk.mometa.cimcvmedia.CimcvmediaMountConfigPolicy",
+        "class": "CimcvmediaMountConfigPolicy",
+        "properties": {
+            "parent_mo_or_dn": "org-root",
+            "name": "{{ vMediaPolName }}"
+        },
+        "children": [
+            {
+                "module": "ucsmsdk.mometa.cimcvmedia.CimcvmediaConfigMountEntry",
+                "class": "CimcvmediaConfigMountEntry",
+                "properties": {
+                    "device_type": "cdd",
+                    "image_file_name": "{{ vMediaFname }}",
+                    "image_path": "{{ vMediaPath[0] }}",
+                    "mapping_name": "{{ vMediaName[0] }}",
+                    "mount_protocol": "{{ vMediaProt[0] }}",
+                    "remote_ip_address": "{{ vMediaIP[0] }}",
+                    "remap_on_eject": "yes"
+                },
+            }
+            # {
+            #     "module": "ucsmsdk.mometa.cimcvmedia.CimcvmediaConfigMountEntry",
+            #     "class": "CimcvmediaConfigMountEntry",
+            #     "properties": {
+            #         "device_type": "cdd",
+            #         "image_file_name": "{{ vMediaFname }}",
+            #         "image_path": "{{ vMediaPath[1] }} ",
+            #         "mapping_name": "{{ vMediaName[1] }}",
+            #         "mount_protocol": "{{ vMediaProt[1] }}",
+            #         "remote_ip_address": "{{ vMediaIP[1] }}",
+            #         "remap_on_eject": "yes"
+            #     },
+            # }
+        ]
+    }
+
+ucs_host_firmware_packages:
+- objects:
+  - {
+        "module": "ucsmsdk.mometa.firmware.FirmwareComputeHostPack",
+        "class": "FirmwareComputeHostPack",
+        "properties": {
+            "parent_mo_or_dn": "org-root",
+            "blade_bundle_version": "4.0(4i)B",
+            "rack_bundle_version": "",
+            "name": "{{ hfp_name }}"
+        }
+    }
+
+ucs_server_pools:
+- objects:
+  - {
+        "module": "ucsmsdk.mometa.compute.ComputePool",
+        "class": "ComputePool",
+        "properties": {
+            "parent_mo_or_dn": "org-root",
+            "name": "{{ srvPool_name }}"
+        },
+        "children": [
+            {
+                "module": "ucsmsdk.mometa.compute.ComputePooledSlot",
+                "class": "ComputePooledSlot",
+                "properties": {
+                    "chassis_id": "1",
+                    "slot_id": "1"
+                }
+            },
+            {
+                "module": "ucsmsdk.mometa.compute.ComputePooledSlot",
+                "class": "ComputePooledSlot",
+                "properties": {
+                    "chassis_id": "1",
+                    "slot_id": "2"
+                }
+            } ] }
+
+ucs_boot_policies:
+- objects:
+  - {
+        "module": "ucsmsdk.mometa.lsboot.LsbootPolicy",
+        "class": "LsbootPolicy",
+        "properties": {
+            "parent_mo_or_dn": "org-root",
+            "boot_mode": "legacy",
+            "enforce_vnic_name": "yes",
+            "name": "{{ bp_name }}",
+            "reboot_on_update": "no"
+        },
+        "children": [
+            {
+                "module": "ucsmsdk.mometa.lsboot.LsbootVirtualMedia",
+                "class": "LsbootVirtualMedia",
+                "properties": {
+                    "access": "read-only-local",
+                    "lun_id": "0",
+                    "order": "3"
+                }
+            },
+            {
+                "module": "ucsmsdk.mometa.lsboot.LsbootVirtualMedia",
+                "class": "LsbootVirtualMedia",
+                "properties": {
+                    "access": "read-only-remote-cimc",
+                    "lun_id": "0",
+                    "order": "2"
+                }
+            },
+            {
+                "module": "ucsmsdk.mometa.lsboot.LsbootStorage",
+                "class": "LsbootStorage",
+                "properties": {
+                    "order": "1"
+                },
+                "children": [
+                    {
+                        "module": "ucsmsdk.mometa.lsboot.LsbootLocalStorage",
+                        "class": "LsbootLocalStorage",
+                        "properties": {},
+                        "children": [
+                            {
+                                "module": "ucsmsdk.mometa.lsboot.LsbootLocalHddImage",
+                                "class": "LsbootLocalHddImage",
+                                "properties": {
+                                    "order": "1",
+                                }, 
+                            } ] } ] } ] }

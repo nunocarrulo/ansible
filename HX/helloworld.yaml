@@ -9,3 +9,38 @@
     - name: Hello World Cluster Lists
       debug:
         msg: "Hello World {{ cluster_name }}"
+
+
+    # - name: Waiting for all Servers to complete SP Disassociation (every 2min) # retries every 2min, for 1h. [Approx 15min]
+    #   cisco.ucs.ucs_query:
+    #     <<: *ucsm_login
+    #     #class_ids: computeItem #"{{ item.dn }}"
+    #     distinguished_names: "{{ item }}"
+    #   register: res
+    #   when: cleanup_dnlist is defined
+    #   until:  assocState  == 'none'
+    #   loop: "{{ cleanup_dnlist }}"
+    #   retries: 120
+    #   delay: 10
+    #   tags: ["spdisassoc2"]
+    
+    # - name: Printing
+    #   debug:
+    #     msg: 
+    #       #- "{{ res.objects  }}" #"{{ item  }}"
+    #       - "{{ assocState }}" 
+    #   until: assocState  == 'none'
+    #   when: cleanup_dnlist is defined
+    #   #loop: "{{ cleanup_dnlist }}"
+    #   tags: ["spdisassoc2"]
+
+        # - name: Waiting for all Servers to complete Cleanup SP Association ... 
+    #   cisco.ucs.ucs_query:
+    #     <<: *ucsm_login
+    #     distinguished_names: "{{ item }}"
+    #   loop: "{{ assocSearch }}"
+    #   # until: assocState == 'associated' #and assocRes.assoc_state == 'associated'
+    #   # retries: 24     
+    #   # delay: 300
+    #   register: assocRes
+    #   tags: ["spassoc2"]

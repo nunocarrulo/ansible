@@ -13,7 +13,9 @@
     - group_vars/cleanupsp.yml
   vars_prompt:
     - name: "cluster_name"
-      prompt: "Which Standard cluster would you like to deploy ? \nCluster list: {{ stdClusterList }} \n"
+      prompt: 
+        - "Which Standard cluster would you like to deploy ?"
+        - "Cluster list: {{ stdClusterList }}"
       #confirm: yes
       private: no
       unsafe: no
@@ -27,7 +29,7 @@
           when: cluster_name not in stdClusterList
         - name: Debug Selected Cluster(s)
           debug:
-            msg: "Cluster name: {{ cluster_name }} and UCSM FQDN: {{ ucsm_host }}"
+            msg: "Cluster name: {{ cluster_name }} UCSM: {{ ucsm_host }}"
       tags: ["clusterSel"]
 
     - name: Block Query Org and existing Service-Profiles
@@ -44,7 +46,7 @@
             class_ids: computeItem
           register: hxservers
 
-        # - name: Associate TEST Cleanup SPs
+        # - name: Debug Associate Cleanup SPs
         #   debug:
         #     msg: "{{ item.key}} : {{item.value }}"
         #     #msg: "{{ comboSPDN }}"
@@ -64,7 +66,7 @@
           when: hx_SPs is defined and item.assign_state == 'assigned' #and item.assoc_state == 'associated'
           loop: "{{ hx_SPs.objects.lsServer }}"
 
-        - name: Query SP Names
+        - name: Debug Query SP Names
           debug:
             msg: 
               - "-> Existing SP {{ disassocSPList }}"
@@ -141,8 +143,8 @@
         <<: *ucsm_login
         objects: "{{ item.objects }}"
         state: '{{ bp_state }}'
-        #when: item.objects is defined
-      #no_log: "{{ noLog }}"
+      #when: item.objects is defined
+      no_log: "{{ noLog }}"
       with_items: "{{ ucs_boot_policies }}"
       tags: ['serverPol']
 
@@ -178,7 +180,6 @@
         <<: *ucsm_login
         org_dn: "{{ org_dn }}"
         name: '{{ item }}'
-        #name: '{{ sp_name }}'
         source_template: '{{ spt_name }}'
       loop: '{{ cleanup_splist }}'
       tags: ["spconfig"]
@@ -195,30 +196,6 @@
       until: disassocRes.assign_state == 'unassigned' and disassocRes.assoc_state == 'unassociated' 
       tags: ["spdisassoc"]
 
-    # - name: Waiting for all Servers to complete SP Disassociation (every 2min) # retries every 2min, for 1h
-    #   cisco.ucs.ucs_query:
-    #     <<: *ucsm_login
-    #     #class_ids: computeItem #"{{ item.dn }}"
-    #     distinguished_names: "{{ item }}"
-    #   register: res
-    #   when: cleanup_dnlist is defined
-    #   until:  assocState  == 'none'
-    #   loop: "{{ cleanup_dnlist }}"
-    #   retries: 120
-    #   delay: 10
-    #   delegate_to: "{{ worker }}"
-    #   tags: ["spdisassoc2"]
-    
-    # - name: Printing
-    #   debug:
-    #     msg: 
-    #       #- "{{ res.objects  }}" #"{{ item  }}"
-    #       - "{{ assocState }}" 
-    #   until: assocState  == 'none'
-    #   when: cleanup_dnlist is defined
-    #   #loop: "{{ cleanup_dnlist }}"
-    #   tags: ["spdisassoc2"]
-
     - name: Associate Cleanup SPs
       cisco.ucs.ucs_service_profile_association:
         <<: *ucsm_login
@@ -226,47 +203,15 @@
         service_profile_name: '{{ item.key }}'
         server_assignment: server
         server_dn: "{{ item.value }}"
-      register: assocRes
       with_dict: item
       loop: "{{ comboSPDN }}"
-      #until: assocRes.assign_state == 'assigned' and assocRes.assoc_state == 'associated'
-      #retries: 40
-      #delay: 300
       tags: ["spassoc"]
-
-    - name: Waiting for all Servers to complete Cleanup SP Association # retries every 5min, for 2h
-      cisco.ucs.ucs_query:
-        <<: *ucsm_login
-        class_ids: computeItem
-      register: hxservers 
-      when: hxservers is defined
-      loop: "{{ hxservers.objects.computeItem }}"
-      until:  item.association == 'associated'
-      retries: 24     
-      delay: 300
-      tags: ["spassoc"]
-
-    - name: Printing
-      debug:
-        msg: 
-          #- "{{ res.objects  }}" #"{{ item  }}"
-          - "{{ assocState }}" 
-      until: assocState  == 'none'
-      when: cleanup_dnlist is defined
-      #loop: "{{ cleanup_dnlist }}"
-      tags: ["spdisassoc2"]
-
-    # - name: Debug SP Association
-    #   debug:
-    #     msg: SP Template "{{ spassoc }}"
-    #   delegate_to: "{{ worker }}"
-    #   tags: ["spassoc"]
 
 ##### Create a delay to give enough time for ESXi installation
-    - name: Pausing for Association and ESXi Installation
+    - name: Association and ESXi Installation in progress, please wait...
       pause: 
-        prompt: "Make sure all ESXi are installed before proceeding!"
-        minutes: 120
+        prompt: "Make sure all ESXi are installed before proceeding otherwise ESXi Installation will fail"
+        minutes: 180
       tags: ["install"]
 
     - name: Remove Cleanup Organization
@@ -276,7 +221,7 @@
         state: absent
       tags: ["remCleanupOrg"]
 
-    # To enable at the end
+    ### To enable at the end
     # - name: Remove Hyperflex {{ hx_org_name }} Organization
     #   cisco.ucs.ucs_org:
     #     <<: *ucsm_login
@@ -285,7 +230,7 @@
     #   tags: ["remHXOrg"]
 
 # Delete the cluster from vCenter
-    - name: Delete Cluster {{ cluster_name }}
+    - name: Delete Cluster {{ cluster_name }} from "{{ vc_host }}"
       community.vmware.vmware_cluster:
         hostname: "{{ vc_host }}"
         username: "{{ vc_admin }}"

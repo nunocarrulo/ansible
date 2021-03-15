@@ -1,5 +1,6 @@
 debug: True
-ansible_python_interpreter: auto_silent
+#ansible_python_interpreter: auto_silent
+ansible_python_interpreter: /usr/bin/python3
 noLog: True
 org_state: present    #Organization
 org_name: cleanup 
@@ -47,9 +48,6 @@ vMediaFname: HXnb-ESXi-6.7U3-16316930-Cisco-Custom-6.7.3.5-install-only.iso
 # SP Template & SP Association
 spt_state: present
 spt_name: cleanup_template
-#sp_name: clean_sp
-#sp_remove: clean_sp
-#sp_list: ['cleanup1', 'cleanup2', 'cleanup3']
 
 disassocSPList: []
 cleanup_splist: >
@@ -59,10 +57,15 @@ cleanup_dnlist: >
 #cleanup_dnlist: "{{ cleanup_splist | replace('cleanup-','') }}"
 comboSPDN: "{{ dict(cleanup_splist | zip(cleanup_dnlist)) }}"
 
-assocState: >
-  {% for k,v in res.objects.items() -%} 
-        '{{ v.association }}'
-  {% endfor %}
+# assocSearch: >
+#   [ {% for sp in cleanup_splist %} 'org-root/org-cleanup/ls-{{ sp }}' ,{% endfor %} ]
+
+# assocState: >
+#   {% for k,v in assocRes.objects.items() -%} 
+#     {% for k2,v2 in v.items() -%} 
+#         '{{ v2 }}'
+#     {% endfor %}
+#   {% endfor %}
 
 ucs_vmedia_policies:
 - objects:
@@ -71,7 +74,8 @@ ucs_vmedia_policies:
         "class": "CimcvmediaMountConfigPolicy",
         "properties": {
             "parent_mo_or_dn": "{{ org_dn }}",
-            "name": "{{ vMediaPolName }}"
+            "name": "{{ vMediaPolName }}",
+            "retry_on_mount_fail": "no"
         },
         "children": [
             {
@@ -134,8 +138,8 @@ ucs_boot_policies:
                         "properties": {},
                         "children": [
                             {
-                                "module": "ucsmsdk.mometa.lsboot.LsbootLocalHddImage",
-                                "class": "LsbootLocalHddImage",
+                                "module": "ucsmsdk.mometa.lsboot.LsbootEmbeddedLocalDiskImage",
+                                "class": "LsbootEmbeddedLocalDiskImage",
                                 "properties": {
                                     "order": "3",
                                 }, 

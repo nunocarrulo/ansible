@@ -16,12 +16,8 @@
   # - bsv-hx-13
 
 ucsm_user: admin
-# To delete and use hxvault
-ucsm_pwd: SVCisc0123!   
-vc_pwd: SVCisc0123!
+ansible_python_interpreter: /usr/bin/python3
 
-ansible_python_interpreter: auto_silent
-worker: '10.48.64.20'
 cluster_list: >
   [ {% for n in range(1,14) %} 'bsv-hx-{{ n }}' ,{% endfor %} ] 
 

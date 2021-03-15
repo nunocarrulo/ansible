@@ -10,17 +10,17 @@
       password: '{{ ucsm_pwd}}'
   vars_files:
     - group_vars/hx_clusters.yml
+    - group_vars/hxvault.yml
     - group_vars/cleanupsp.yml
   vars_prompt:
     - name: "cluster_name"
-      prompt: 
-        - "Which Standard cluster would you like to deploy ?"
-        - "Cluster list: {{ stdClusterList }}"
-      #confirm: yes
+      prompt: "Which Standard cluster would you like to deploy ?\nCluster list {{ stdClusterList }}"
+      confirm: yes
       private: no
       unsafe: no
 
   tasks:  
+# =============== Cluster Validation ====================
     - name: Debug Cluster selection block
       block:
         - name: Verify if HX cluster is Standard
@@ -32,6 +32,7 @@
             msg: "Cluster name: {{ cluster_name }} UCSM: {{ ucsm_host }}"
       tags: ["clusterSel"]
 
+# =============== Query ====================
     - name: Block Query Org and existing Service-Profiles
       block:
         - name: Query Org
@@ -45,14 +46,6 @@
             <<: *ucsm_login
             class_ids: computeItem
           register: hxservers
-
-        # - name: Debug Associate Cleanup SPs
-        #   debug:
-        #     msg: "{{ item.key}} : {{item.value }}"
-        #     #msg: "{{ comboSPDN }}"
-        #   with_dict: item
-        #   loop: "{{ comboSPDN }}"
-        #   delegate_to: "{{ worker }}"
 
         - name: Obtain existing HX SPs
           cisco.ucs.ucs_query:
@@ -72,7 +65,8 @@
               - "-> Existing SP {{ disassocSPList }}"
               - "-> Cleanup SP Names {{ cleanup_splist }}"
       tags: ["query"]
-        
+
+# =============== ORG ====================
     - name: Add Cleanup Organization
       cisco.ucs.ucs_org:
         <<: *ucsm_login
@@ -208,10 +202,20 @@
       tags: ["spassoc"]
 
 ##### Create a delay to give enough time for ESXi installation
-    - name: Association and ESXi Installation in progress, please wait...
+    - name: Collect only Datetime facts 
+      setup:
+        filter: ansible_date_time
+
+    - name: ESXi Installation
       pause: 
-        prompt: "Make sure all ESXi are installed before proceeding otherwise ESXi Installation will fail"
+        prompt: "Start time: {{ ansible_date_time.iso8601 }} {{ansible_date_time.tz }} \n
+        Did SP Association & ESXi installation complete for all hosts (yes/no) ? If 'no', Do NOT proceed or ESXi Installation may fail"
+        echo: yes
         minutes: 180
+      register: assign_response
+      retries: 10
+      delay: 1
+      until: assign_response.user_input == 'yes'
       tags: ["install"]
 
     - name: Remove Cleanup Organization
@@ -221,13 +225,12 @@
         state: absent
       tags: ["remCleanupOrg"]
 
-    ### To enable at the end
-    # - name: Remove Hyperflex {{ hx_org_name }} Organization
-    #   cisco.ucs.ucs_org:
-    #     <<: *ucsm_login
-    #     org_name: "{{ hx_org_name }}"
-    #     state: absent
-    #   tags: ["remHXOrg"]
+    - name: Remove Hyperflex {{ hx_org_name }} Organization
+      cisco.ucs.ucs_org:
+        <<: *ucsm_login
+        org_name: "{{ hx_org_name }}"
+        state: absent
+      tags: ["remHXOrg"]
 
 # Delete the cluster from vCenter
     - name: Delete Cluster {{ cluster_name }} from "{{ vc_host }}"

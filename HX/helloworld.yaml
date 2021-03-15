@@ -1,14 +1,22 @@
 ---
-#- name: Hello World
-- hosts: "{{ cluster_name }}"
+- hosts:  tbd
   connection: local
-  gather_facts: false
-  vars_files:
-    - group_vars/eurostorage.yml
+  gather_facts: no
   tasks:
-    - name: Hello World Cluster Lists
-      debug:
-        msg: "Hello World {{ cluster_name }}"
+    - name: Collect only Datetime facts 
+      setup:
+        filter: ansible_date_time
+
+    - name: Association and ESXi Installation 
+      pause:
+        prompt: "Start time: {{ ansible_date_time.iso8601 }} {{ansible_date_time.tz }} 
+        \nDid installation complete for all ESXi (yes/no) ? If 'no', Do NOT proceed or ESXi Installation may fail!"
+        echo: yes
+      register: assign_response
+      #run_once: true
+      retries: 10
+      delay: 1
+      until: assign_response.user_input == 'yes'
 
 
     # - name: Waiting for all Servers to complete SP Disassociation (every 2min) # retries every 2min, for 1h. [Approx 15min]
@@ -44,3 +52,11 @@
     #   # delay: 300
     #   register: assocRes
     #   tags: ["spassoc2"]
+
+            # - name: Debug Associate Cleanup SPs
+        #   debug:
+        #     msg: "{{ item.key}} : {{item.value }}"
+        #     #msg: "{{ comboSPDN }}"
+        #   with_dict: item
+        #   loop: "{{ comboSPDN }}"
+        #   delegate_to: "{{ worker }}"

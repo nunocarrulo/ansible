@@ -1,0 +1,88 @@
+---
+#####
+# Note: Everything under commentary is defined elsewhere that being
+# 1) Playbook 2) Var file 3) Role defaults
+#####
+org_name: default
+
+### HX Cluster Profile
+#hx_cluster_profile: bsv-hx-9-cluster-profile
+#hx_cluster_name: BSV_HX_9
+hx_mgmt_ip: 172.16.9.10
+hx_mgmt_mac_prefix: 00:25:B5:09
+hx_data_vlan_name: SCVM_Data    #Just for Standard Cluster
+hx_data_vlan_id: 1292
+#hx_mgmt_platform: EDGE/FI      #Defined on playbook, default FI
+hx_hypervisor_type: ESXi
+  #ESXi - The hypervisor running on the HyperFlex cluster is a Vmware ESXi hypervisor of any version.
+  #HyperFlexAp - The hypervisor running on the HyperFlex cluster is Cisco HyperFlex Application Platform.
+  #Hyper-V - The hypervisor running on the HyperFlex cluster is Microsoft Hyper-V.
+
+### Software version
+#hxdp_version: 4.5(1a)
+#ucs_firmware_version: 4.0(4i)
+
+### DNS
+hx_sys_config_timezone: Europe/Brussels
+hx_sys_config_dns_servers: ["172.16.0.20"]
+hx_sys_config_ntp_servers: ["173.38.201.67", "173.38.201.115"]
+hx_sys_config_dns_domain: bsv-hx.local
+
+### Local Credentials
+#hx_local_credential_policy: "{{ hx_cluster_name }}"-local-credential-policy
+hx_hypervisor_admin: root
+hx_hypervisor_factory_password: true
+#hx_hypervisor_password: 
+#hx_dp_root_password: 
+
+### vCenter
+#hx_vcenter_hostname: bsv-hx-9-vc.bsv-hx.local
+hx_vcenter_username: administrator@vsphere.local
+hx_vcenter_datacenter: "{{ hx_cluster_name }}"
+#hx_vcenter_password: 
+
+### Cluster Storage
+# hx_vdi_optimization: false
+hx_disk_cleanup: true
+#hx_laz_autoconfig: 
+
+### Cluster Network
+hx_cluster_network_policy: 
+hx_jumbo_frames: true
+hx_mac_start: 00:25:B5:09
+hx_mac_end: 00:25:B5:09
+hx_mgmt_vlan_name: SCVM_MGMT
+hx_mgmt_vlan_id: 1291
+ucs_kvm_start_ip: 10.48.64.133
+ucs_kvm_end_ip: 10.48.64.135
+ucs_kvm_gateway: 10.48.64.1
+ucs_kvm_netmask: 255.255.255.0
+hx_migration_vlan_name: vMotion
+hx_migration_vlan_id: 1293
+hx_guest_vm_vlans: '[
+  { "Name": "VLAN1334", "VlanId": 1294 },
+  { "Name": "VLAN1335", "VlanId": 1295 } ]'
+#hx_uplink_speed: default / 1G / 10G
+
+### Auto Support & Proxy
+# hx_auto_support_enable: True
+# hx_auto_support_receipient: <cec>@cisco.com
+#hx_proxy_setting_policy: "{{ hx_cluster_name }}"-hx_proxy_setting_policy
+hx_proxy_setting_port: 80
+hx_proxy_setting_hostname: proxy.esl.cisco.com
+
+### Node Config
+hx_node_profile_prefix: "{{ hx_cluster_name }}"
+esx_mgmt_ip_start: 172.16.9.11
+esx_mgmt_ip_end: 172.16.9.13
+hx_mgmt_netmask: 255.255.255.0
+hx_mgmt_gateway: 172.16.9.1
+hx_mgmt_vm_ip_start: 172.16.9.14
+hx_mgmt_vm_ip_end: 172.16.9.16
+
+### Claiming
+#toClaimHostList: "[('WZP24150FR8','2577B8C179F1'),('WZP24150FS5','7A3523749D42')]"
+
+# Cluster Profile Server Assignment
+hx_servers: ['bsv-6454-hx-9-1','bsv-6454-hx-9-2','bsv-6454-hx-9-3']
+#hx_servers: ['604643836176752d34c40e77','604643616176752d34c401cd']

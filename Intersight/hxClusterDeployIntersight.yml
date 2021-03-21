@@ -1,4 +1,5 @@
 ---
+- name: Deploy Hyperflex Cluster {{ hx_cluster_name }}
 #
 # Configure HyperFlex Edge Cluster Profiles
 #
@@ -7,49 +8,70 @@
 #   ansible-playbook ... -e group=<your host group>
 #   e.g., ansible-playbook server_profiles.yml -e group=TME_Demo
 #
-- hosts: "{{ group | default('Intersight_HX') }}"
+#- hosts: "{{ group | default('Intersight_HX') }}"
   connection: local
-  gather_facts: false
-  vars:
-  # If your inventory or host/group_vars don't specify required api key information, you can set directly below:
-  # api_private_key: ~/Downloads/SecretKey.txt
-  # api_key_id: 5a3404ac3768393836093cab/5b02fa7e6d6c356772394170/5b02fad36d6c356772394449
+  hosts: "{{ hx_cluster_name }}"
+  gather_facts: False
+  #vars:
+    # If your inventory or host/group_vars don't specify required api key information, you can set directly below:
+    # api_private_key: <APIKey Location>
+    # api_key_id: <APIKey>
+  vars_files:
+    - group_vars/Intersight_HX.yml
+    - group_vars/intersightvault.yml
   vars_prompt:
+    - name: "hx_cluster_name"
+      prompt: "Which Hyperflex Cluster would you like to deploy ?\n Cluster list {{ stdClusterList }}"
+      confirm: yes
+      private: no
+      unsafe: no
     
-    # - name: "hx_vcenter_password"
-    #   prompt: "Enter the vCenter administrative password"
-    #   private: yes
-    #   confirm: yes
-    #   unsafe: yes
+    - name: "hxdp_version"
+      prompt: "What version of the Hyperflex would you like to install? e.g: 4.5(1a) "
+      private: no
+      confirm: yes
+      default: 4.5(1a)
 
-    # - name: "hx_hypervisor_password"
-    #   prompt: "Enter the new ESXi nodes' administrative password"
-    #   private: yes
-    #   confirm: yes
-    #   unsafe: yes
+    - name: "ucs_firmware_version"
+      prompt: "What version of the UCSM would you like to install? e.g: 4.0(4i) "
+      private: no
+      confirm: yes
+      default: 4.1(2b)
 
-    # - name: "hx_dp_root_password"
-    #   prompt: "Enter the HyperFlex administrative password"
-    #   private: yes
-    #   confirm: yes
-    #   unsafe: yes
-    
     - name: "execute_auto_support"
       prompt: "Do you need to enable Auto Support settings? (yes/no)"
       private: no
+      default: 'yes'
 
     - name: "execute_proxy"
       prompt: "Do you need to configure proxy settings? (yes/no)"
       private: no
-  vars_files:
-    - group_vars/intersightvault.yml
+      default: 'yes'
+  
+    ## If these are needed uncomment here, add role details to playbook and vars to the correspondent cluster host_vars file
+    # - name: "execute_iscsi"
+    #   prompt: "Do you need to configure additional vNICs for iSCSI settings? (yes/no)"
+    #   private: no
+
+    # - name: "execute_fc"
+    #   prompt: "Do you need to configure additional vHBAs for FC settings? (yes/no)"
+    #   private: no
 
   tasks:
     #Debug credentials
     - name: Debug credentials
       ansible.builtin.debug:
-        msg: "VC Password: {{ hx_vcenter_password }} \n API URI: {{ api_uri }} \n Gateway: {{ hx_mgmt_gateway }}"
+        msg: "VC Password: {{ hx_vcenter_password }} \n API URI: {{ api_uri }} \n API Key Location: {{ api_private_key }}"
       when: debug == True
+      tags: ['debug']
+    
+    #Debug variables
+    - name: Debug variables
+      debug:
+        msg: "HXDP version: {{ hxdp_version }} \n UCSM Firwmare: {{ ucs_firmware_version }}"
+      when: debug == True
+      tags: ['debug']
+
     # Obtain Organization
     - name: "Get Organization {{ org_name }}"
       vars:
@@ -72,16 +94,39 @@
 
     # Cluster Profile
     - import_role:
+        # Make sure your role is on the path defined below or adjust it accordingly (~/.ansible/roles/<name>)
         name: cisco.intersight/policies/hyperflex_policies/edge_cluster_profile
       vars:
         hx_cluster_profile: "{{ hx_cluster_name }}"
+      when: hx_cluster_name in edgeClusterList
       tags: ['cluster_profile']
+    
+    - import_role:
+        name: cisco.intersight/policies/hyperflex_policies/cluster_profile
+      vars:
+        hx_cluster_profile: "{{ hx_cluster_name }}"
+      when: hx_cluster_name in stdClusterList
+      tags: ['cluster_profile']
+
     # Software Version 
     - import_role:
         name: cisco.intersight/policies/hyperflex_policies/edge_software_version
       vars:
         hx_software_policy: "{{ hx_cluster_name }}-software-version-policy"
+        #hxdp_version: "{{ hxdp_version }}"
+        #ucs_firmware_version: "{{ ucs_firmware_version }}"
+      when: hx_cluster_name in edgeClusterList
       tags: ['software']
+    
+    - import_role:
+        name: cisco.intersight/policies/hyperflex_policies/software_version
+      vars:
+        hx_software_policy: "{{ hx_cluster_name }}-software-version-policy"
+        #hxdp_version: "{{ hxdp_version }}"
+        #ucs_firmware_version: "{{ ucs_firmware_version }}"
+      when: hx_cluster_name in stdClusterList
+      tags: ['software']
+
     # DNS
     - import_role:
         name: cisco.intersight/policies/hyperflex_policies/sys_config
@@ -99,13 +144,23 @@
         name: cisco.intersight/policies/hyperflex_policies/vcenter
       vars:
         hx_vcenter_config_policy: "{{ hx_cluster_name }}-vcenter-config-policy"
+        hx_vcenter_hostname: "{{ hx_cluster_name }}-vc.bsv-hx.local"
       tags: ['vcenter']
     # Storage Config
     - import_role:
         name: cisco.intersight/policies/hyperflex_policies/edge_cluster_storage
       vars:
         hx_cluster_storage_policy: "{{ hx_cluster_name }}-cluster-storage-policy"
+      when: hx_cluster_name in edgeClusterList
       tags: ['storage']
+    
+    - import_role:
+        name: cisco.intersight/policies/hyperflex_policies/cluster_storage
+      vars:
+        hx_cluster_storage_policy: "{{ hx_cluster_name }}-cluster-storage-policy"
+      when: hx_cluster_name in stdClusterList
+      tags: ['storage']
+
     # Auto Support
     - import_role: 
         name: cisco.intersight/policies/hyperflex_policies/auto_support
@@ -114,6 +169,7 @@
         hx_auto_support_enable: true
       when: execute_auto_support|bool
       tags: ['autosupport']
+    
     # Proxy
     - import_role:
         name: cisco.intersight/policies/hyperflex_policies/proxy
@@ -121,12 +177,22 @@
         hx_proxy_setting_policy: "{{ hx_cluster_name }}-proxy-setting-policy"
       when: execute_proxy|bool
       tags: ['proxy']
+
     # Network Config
     - import_role:
         name: cisco.intersight/policies/hyperflex_policies/edge_cluster_network
       vars:
         hx_cluster_network_policy: "{{ hx_cluster_name }}-cluster-network-policy"
+      when: hx_cluster_name in edgeClusterList
       tags: ['network']
+    
+    - import_role:
+        name: cisco.intersight/policies/hyperflex_policies/cluster_network
+      vars:
+        hx_cluster_network_policy: "{{ hx_cluster_name }}-cluster-network-policy"
+      when: hx_cluster_name in stdClusterList
+      tags: ['network']    
+    
     # Node IP and Hostname
     - import_role:
         name: cisco.intersight/policies/hyperflex_policies/node_config
@@ -166,4 +232,4 @@
       when: deploy_response.user_input|bool
 
     - debug:
-        msg: "HyperFlex Edge cluster creation is complete."
+        msg: "HyperFlex cluster {{ hx_cluster_name }} creation is complete."

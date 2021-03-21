@@ -1,0 +1,4 @@
+all:
+  children:
+    hx_clusters: 
+      hosts: bsv-hx-[1:13]

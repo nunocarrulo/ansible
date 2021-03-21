@@ -33,7 +33,7 @@ hx_vcenter_datacenter: BSV-HX-13
 
 #Cluster Storage & Network
 # hx_vdi_optimization: false
-# hx_disk_cleanup: false
+hx_disk_cleanup: true
 hx_cluster_network_policy: 
 hx_jumbo_frames: 
 hx_mac_start: 00:25:B5:13
@@ -44,9 +44,9 @@ hx_uplink_speed: 10G
 #Auto Support & Proxy
 # hx_auto_support_enable: True
 # hx_auto_support_receipient: nbras@cisco.com
-#hx_proxy_setting_policy: bsv-hx-13-hx_proxy_setting_policy
-#hx_proxy_setting_port: 80
-#hx_proxy_setting_hostname proxy.esl.cisco.com
+hx_proxy_setting_policy: bsv-hx-13-hx_proxy_setting_policy
+hx_proxy_setting_port: 80
+hx_proxy_setting_hostname: proxy.esl.cisco.com
 
 #Node Config
 hx_node_profile_prefix: bsv-hx-13

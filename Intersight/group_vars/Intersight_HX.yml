@@ -1,0 +1,16 @@
+---
+debug: False
+#ansible_python_interpreter: /usr/bin/python3
+ansible_python_interpreter: auto_silent
+validate_certs: false
+#inventory_file: /Users/nbras/devnet/AnsibleProjs/HXIntersight/intersight-ansible/myinventory
+
+ucsm_user: admin
+
+cluster_list: >
+  [ {% for n in range(1,14) %} 'bsv-hx-{{ n }}' ,{% endfor %} ] 
+
+stdClusterList: "{{ cluster_list | difference(edgeClusterList) }}"
+edgeClusterList:
+    - bsv-hx-8
+    - bsv-hx-13

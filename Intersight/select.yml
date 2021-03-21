@@ -1,0 +1,20 @@
+- hosts: "{{ cluster_name }}"
+  connection: local
+  gather_facts: false
+  vars_files:
+    - group_vars/intersight.yml
+  vars_prompt:
+    - name: "cluster_name"
+      prompt: "Which cluster would you like to deploy ? \nCluster list: {{ cluster_list }} \n"
+      #confirm: yes
+      private: no
+      unsafe: no
+
+  tasks:
+  - name: Debug Cluster List
+    debug:
+      msg: "{{ item }}"
+    loop: "{{ cluster_list }}"
+  - name: Debug Selected Cluster(s)
+    debug:
+      msg: "Cluster name: {{ cluster_name }}"

@@ -1,8 +1,7 @@
 debug: True
 org_state: present    #Organization
-
-ucsm_user: admin
-ucsm_pwd: cisco!123
+org_name: nbras
+#org_dn: "{{ orgRes.objects.orgOrg.dn }}"
 
 #IP Pool
 ipPool_state: present

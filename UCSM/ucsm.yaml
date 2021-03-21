@@ -10,22 +10,21 @@
       password: '{{ ucsm_pwd}}'
   vars_files:
     #- vars/vault.yml
-    - vars/sp.yml
-    - vars/ucsMngObj.yml
 
   tasks:  
     # - name: Add UCS Organization
     #   cisco.ucs.ucs_org:
     #     <<: *ucsm_login
-    #     org_name: nbras
-    #     description: Test Org
+    #     org_name: "{{ org_name }}"
+    #     description: My org
     #     state: '{{ org_state }}'
-    #     delegate_to: localhost
+    #    register: orgRes
 
 # =============== NETWORK ====================
     - name:  Configure MAC pool A
       cisco.ucs.ucs_mac_pool:
         <<: *ucsm_login
+        #org_dn: "{{ org_dn }}"
         name: '{{ macPoolA }}'
         first_addr: '{{ MAC_A_start }}'
         last_addr: '{{ MAC_A_end }}'
@@ -41,6 +40,7 @@
         last_addr: '{{ MAC_B_end }}'
         order: sequential
         state: '{{ MAC_state }}'
+      tags: ["network"]
 
     - name:  Configure IP pool
       cisco.ucs.ucs_ip_pool:
@@ -52,6 +52,7 @@
           subnet_mask: '{{ ipPool_mask }}'
           default_gw: '{{ ipPool_DG }}'
         state: '{{ ipPool_state }}'
+      tags: ["network"]
   
     - name:  Configure VLANs
       cisco.ucs.ucs_vlans:
@@ -60,6 +61,7 @@
         id: '{{ item | string }}'
         state: '{{ vlans_state }}'
       loop: '{{ vlan_ilist }}'
+      tags: ["network"]
 
     # - name: Configure VLAN-Group
     #   cisco.ucs.ucs_vlan_to_group:
@@ -75,6 +77,7 @@
         vlanname: '{{ item | string }}'
         state: '{{ vlanG_state }}'
       loop: '{{ vlanGroup_list }}'
+      tags: ['network','vlanG']
     
     - name: Configure vNIC template A
       cisco.ucs.ucs_vnic_template:
@@ -87,6 +90,7 @@
         template_type: updating-template
         vlans_list: '{{ vlan_dict }}'
         state: '{{ vnicTempl_state }}'
+      tags: ["network"]
     
     - name: Configure vNIC template B
       cisco.ucs.ucs_vnic_template:
@@ -99,7 +103,8 @@
         template_type: updating-template
         vlans_list: '{{ vlan_dict }}'
         state: '{{ vnicTempl_state }}'
-    
+      tags: ["network"]
+
     - name:  Configure LAN Con Policy
       cisco.ucs.ucs_lan_connectivity:
         <<: *ucsm_login
@@ -112,6 +117,7 @@
           vnic_template: '{{ vnicSec }}'
           adapter_policy: VMWare
         state: '{{ lcp_state }}'
+      tags: ["network"]
 
 # =============== SAN / Storage =====================
     - name: Configure Disk Group Policy
@@ -121,6 +127,7 @@
         raid_level: stripe
         configuration_mode: automatic
         state: '{{ diskGPol_state }}'
+      tags: ["storage"]
 
     - name: Configure Storage Profile
       cisco.ucs.ucs_storage_profile:
@@ -131,6 +138,7 @@
           size: '200'
           expand_to_avail: 'no'  
           disk_policy_name: '{{ diskGPol_name }}'
+      tags: ["storage"]
     
     - name: Configure WWNN/WWPN 
       cisco.ucs.ucs_wwn_pool:
@@ -140,6 +148,8 @@
         first_addr: '{{ WWNN_start }}'
         last_addr: '{{ WWNN_end }}'
         state: '{{ WWN_state }}'
+      tags: ["san"]
+
     - name: Configure WWPN A
       cisco.ucs.ucs_wwn_pool:
         <<: *ucsm_login
@@ -149,6 +159,8 @@
         first_addr: '{{ WWPN_A_start }}'
         last_addr: '{{ WWPN_A_end }}'
         state: '{{ WWN_state }}'
+      tags: ["san"]
+
     - name: Configure WWPN B
       cisco.ucs.ucs_wwn_pool:
         <<: *ucsm_login
@@ -158,6 +170,7 @@
         first_addr: '{{ WWPN_B_start }}'
         last_addr: '{{ WWPN_B_end }}'
         state: '{{ WWN_state }}'
+      tags: ["san"]
     
     - name: Configure vHBA template A
       cisco.ucs.ucs_vhba_template:
@@ -169,6 +182,7 @@
         #template_type: updating-template
         #redundancy_type: primary
         state: '{{ vHBA_state }}'
+      tags: ["san"]
 
     - name: Configure vHBA template B
       cisco.ucs.ucs_vhba_template:
@@ -180,6 +194,7 @@
         #template_type: updating-template
         #redundancy_type: secondary
         state: '{{ vHBA_state }}'
+      tags: ["san"]
 
     - name: Configure SAN Con Policy
       cisco.ucs.ucs_san_connectivity:
@@ -194,6 +209,7 @@
           vhba_template: '{{ vHBA_B }}'
           adapter_policy: VMWare
         state: '{{ scp_state }}'
+      tags: ["san"]
     
 # =============== Server Policies ========================
     - name: Configure Boot Policy
@@ -203,7 +219,7 @@
         state: '{{ bp_state }}'
         #when: item.objects is defined
       with_items: "{{ ucs_boot_policies }}"
-      tags: ["bootPol"]
+      tags: ["serverPol"]
     
     - name: Add Server Maint Policy
       cisco.ucs.ucs_server_maintenance:
@@ -212,6 +228,7 @@
         uptime_disr: user-ack
         trigger_config: on-next-boot
         state: '{{ mp_state }}'
+      tags: ["serverPol"]
 
     - name: Configure Host Firmware Packages
       include_role:
@@ -221,7 +238,8 @@
         ucs_username: '{{ ucsm_user }}'
         ucs_password: '{{ ucsm_pwd }}'
         ucs_state: '{{ hfp_state }}'
-    
+      tags: ["serverPol"]
+
     - name: Configure Server Pools
       include_role:
         name: CiscoUcs.ucs/servers/server_pools
@@ -230,6 +248,7 @@
         ucs_username: '{{ ucsm_user }}'
         ucs_password: '{{ ucsm_pwd }}'
         ucs_state: '{{ srvPool_state }}'
+      tags: ["serverPol"]
     
     - name: Configure UUID address pool
       cisco.ucs.ucs_uuid_pool:
@@ -239,6 +258,7 @@
         first_uuid: '{{ UUID_start }}'
         last_uuid: '{{ UUID_end }}'
         state: '{{ UUID_state }}'
+      tags: ["serverPol"]
 
     - name: Configure vMedia Policy
       ucs_managed_objects:
@@ -247,6 +267,7 @@
         state: '{{ vMedia_state }}'
       #when: item.objects is defined
       with_items: "{{ ucs_vmedia_policies }}"
+    tags: ["serverPol"]
     
 #=============== Service Profile Creation & Association ======================== 
     - name: Configure SP Template
@@ -268,6 +289,7 @@
         vmedia_policy: '{{ vMediaPolName }}'
         state: '{{ spt_state }}'
         #bios_policy: Docker
+      tags: ["sptemplate"]
     
     - name: Configure SP from Template
       cisco.ucs.ucs_service_profile_from_template:
@@ -276,6 +298,7 @@
         name: '{{ sp_name }}'
         source_template: '{{ spt_name }}'
       #loop: '{{ sp_list }}'
+      tags: ["spconfig"]
 
     - name: Associate SP w/server pool
       cisco.ucs.ucs_service_profile_association:
@@ -286,6 +309,7 @@
         restrict_migration: 'yes'
         #server_assignment: server
         #server_dn: sys/chassis-1/blade-1
+      tags: ["spassign"]
       #register: result
       #until: result.assign_state == 'assigned' and result.assoc_state == 'associated'
       #retries: 3

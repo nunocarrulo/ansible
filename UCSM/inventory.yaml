@@ -2,11 +2,9 @@ all:
   children:
     ucsm: 
       hosts:
-        #myucspe:
-        #  ucsm_host: 10.48.51.135
-        #  ucsm_user: ucspe
-        #  ucsm_pwd: ucspe
+        myucspe:
+          ucsm_host: myucspe
+          ucsm_user: ucspe
+          ucsm_pwd: ucspe
         kdc-ucsm:
-          ucsm_host: 10.62.130.4
-          
-          
+          ucsm_host: kdc-ucsm

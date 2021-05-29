@@ -2,6 +2,7 @@ debug: True
 org_state: present    #Organization
 org_name: nbras
 #org_dn: "{{ orgRes.objects.orgOrg.dn }}"
+org_dn: org-root/org-nbras
 
 #IP Pool
 ipPool_state: present
@@ -82,12 +83,12 @@ vMediaPolName: nbras_vMedia
 vMediaName: ['LNX','Win']
 vMediaProt: ['http','http']
 vMediaIP: ['10.48.51.141', '10.48.37.170']
-vMediaPath: ['files','/']
-vMediaFname: ESXi_6.7.0_13006603_custom_nb_6.7.2.1.iso
-#vMediaFname: VMware_ESXi_6.7.0_13006603_Custom_Cisco_6.7.2.1.iso
+vMediaPath: ['files/esxi/','/']
+#vMediaFname: ESXi_6.7.0_13006603_custom_nb_6.7.2.1.iso
+vMediaFname: VMware-VMvisor-nbInstaller-201912001-15160138.x86_64.iso
 
 #HFP
-hfp_name: nbras_4.04i
+hfp_name: nbras_4.13c
 hfp_state: present
 
 # SP Template & SP Association
@@ -96,13 +97,16 @@ spt_name: nbras_template
 sp_name: nbras_sp
 sp_list: ['nbras_sp1', 'nbras_sp2']
 
+# Network Uplink Port-Channels
+netpc_state: present
+
 ucs_vmedia_policies:
 - objects:
   - {
         "module": "ucsmsdk.mometa.cimcvmedia.CimcvmediaMountConfigPolicy",
         "class": "CimcvmediaMountConfigPolicy",
         "properties": {
-            "parent_mo_or_dn": "org-root",
+            "parent_mo_or_dn": "{{ org_dn }}",
             "name": "{{ vMediaPolName }}"
         },
         "children": [
@@ -141,8 +145,8 @@ ucs_host_firmware_packages:
         "module": "ucsmsdk.mometa.firmware.FirmwareComputeHostPack",
         "class": "FirmwareComputeHostPack",
         "properties": {
-            "parent_mo_or_dn": "org-root",
-            "blade_bundle_version": "4.0(4i)B",
+            "parent_mo_or_dn": "{{ org_dn }}",
+            "blade_bundle_version": "4.1(3b)B",
             "rack_bundle_version": "",
             "name": "{{ hfp_name }}"
         }
@@ -154,26 +158,21 @@ ucs_server_pools:
         "module": "ucsmsdk.mometa.compute.ComputePool",
         "class": "ComputePool",
         "properties": {
-            "parent_mo_or_dn": "org-root",
+            "parent_mo_or_dn": "{{ org_dn }}",
             "name": "{{ srvPool_name }}"
         },
         "children": [
             {
                 "module": "ucsmsdk.mometa.compute.ComputePooledSlot",
                 "class": "ComputePooledSlot",
-                "properties": {
-                    "chassis_id": "1",
-                    "slot_id": "1"
-                }
-            },
-            {
-                "module": "ucsmsdk.mometa.compute.ComputePooledSlot",
-                "class": "ComputePooledSlot",
-                "properties": {
-                    "chassis_id": "1",
-                    "slot_id": "2"
-                }
-            } ] }
+                "properties": {"chassis_id": "1","slot_id": "1"}
+            }
+            # {
+            #     "module": "ucsmsdk.mometa.compute.ComputePooledSlot",
+            #     "class": "ComputePooledSlot",
+            #     "properties": {"chassis_id": "1","slot_id": "2"}
+            # } 
+        ] }
 
 ucs_boot_policies:
 - objects:
@@ -181,7 +180,7 @@ ucs_boot_policies:
         "module": "ucsmsdk.mometa.lsboot.LsbootPolicy",
         "class": "LsbootPolicy",
         "properties": {
-            "parent_mo_or_dn": "org-root",
+            "parent_mo_or_dn": "{{ org_dn }}",
             "boot_mode": "legacy",
             "enforce_vnic_name": "yes",
             "name": "{{ bp_name }}",
@@ -191,19 +190,12 @@ ucs_boot_policies:
             {
                 "module": "ucsmsdk.mometa.lsboot.LsbootVirtualMedia",
                 "class": "LsbootVirtualMedia",
-                "properties": {
-                    "access": "read-only-local",
-                    "lun_id": "0",
-                    "order": "3"
-                }
+                "properties": {"access": "read-only-local","lun_id": "0","order": "3"}
             },
             {
                 "module": "ucsmsdk.mometa.lsboot.LsbootVirtualMedia",
                 "class": "LsbootVirtualMedia",
-                "properties": {
-                    "access": "read-only-remote-cimc",
-                    "lun_id": "0",
-                    "order": "2"
+                "properties": {"access": "read-only-remote-cimc","lun_id": "0","order": "2"
                 }
             },
             {
@@ -225,3 +217,51 @@ ucs_boot_policies:
                                     "order": "1",
                                 }, 
                             } ] } ] } ] }
+
+ucs_port_channels:
+- objects:
+  - {
+      "module": "ucsmsdk.mometa.fabric.FabricEthLanPc",
+      "class": "FabricEthLanPc",
+      "properties": { "parent_mo_or_dn": "fabric/lan/A","admin_speed": "10gbps","name": "","port_id": "10" },
+      "children": [
+          {
+              "module": "ucsmsdk.mometa.fabric.FabricEthLanPcEp",
+              "class": "FabricEthLanPcEp",
+              "properties": {"name": "","port_id": "33","slot_id": "1"},
+          },
+          {
+              "module": "ucsmsdk.mometa.fabric.FabricEthLanPcEp",
+              "class": "FabricEthLanPcEp",
+              "properties": {"name": "","port_id": "34","slot_id": "1"},
+          },
+          {
+              "module": "ucsmsdk.mometa.fabric.FabricEthLanPcEp",
+              "class": "FabricEthLanPcEp",
+              "properties": {"name": "","port_id": "35","slot_id": "1"},
+          },
+      ]
+  }
+- objects:
+  - {
+      "module": "ucsmsdk.mometa.fabric.FabricEthLanPc",
+      "class": "FabricEthLanPc",
+      "properties": {"parent_mo_or_dn": "fabric/lan/B","admin_speed": "10gbps","name": "","port_id": "10"},
+      "children": [
+          {
+              "module": "ucsmsdk.mometa.fabric.FabricEthLanPcEp",
+              "class": "FabricEthLanPcEp",
+              "properties": {"name": "","port_id": "33","slot_id": "1"},
+          },
+          {
+              "module": "ucsmsdk.mometa.fabric.FabricEthLanPcEp",
+              "class": "FabricEthLanPcEp",
+              "properties": {"name": "","port_id": "34","slot_id": "1"},
+          },
+          {
+              "module": "ucsmsdk.mometa.fabric.FabricEthLanPcEp",
+              "class": "FabricEthLanPcEp",
+              "properties": {"name": "","port_id": "35","slot_id": "1"},
+          },
+      ]
+  }

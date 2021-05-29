@@ -9,22 +9,29 @@
       username: '{{ ucsm_user }}'
       password: '{{ ucsm_pwd}}'
   vars_files:
-    #- vars/vault.yml
+    - group_vars/vault.yml
+    - host_vars/kdc-ucsm.yml
 
   tasks:  
-    # - name: Add UCS Organization
-    #   cisco.ucs.ucs_org:
-    #     <<: *ucsm_login
-    #     org_name: "{{ org_name }}"
-    #     description: My org
-    #     state: '{{ org_state }}'
-    #    register: orgRes
+    # - name: Debug
+    #   debug:
+    #     msg:  '{{ ucsm }}'
+        #msg: "{{ vlan_dict }}"
+    #   when: debug == True
+    
+    - name: Add UCS Organization
+      cisco.ucs.ucs_org:
+        <<: *ucsm_login
+        org_name: "{{ org_name }}"
+        description: nbras org
+        state: '{{ org_state }}'
+      register: orgRes
 
 # =============== NETWORK ====================
     - name:  Configure MAC pool A
       cisco.ucs.ucs_mac_pool:
         <<: *ucsm_login
-        #org_dn: "{{ org_dn }}"
+        org_dn: "{{ org_dn }}"
         name: '{{ macPoolA }}'
         first_addr: '{{ MAC_A_start }}'
         last_addr: '{{ MAC_A_end }}'
@@ -35,6 +42,7 @@
     - name: Configure MAC pool B
       cisco.ucs.ucs_mac_pool:
         <<: *ucsm_login
+        org_dn: "{{ org_dn }}"
         name: '{{ macPoolB }}'
         first_addr: '{{ MAC_B_start }}'
         last_addr: '{{ MAC_B_end }}'
@@ -45,6 +53,7 @@
     - name:  Configure IP pool
       cisco.ucs.ucs_ip_pool:
         <<: *ucsm_login
+        org_dn: "{{ org_dn }}"
         name: '{{ ipPool }}'
         ipv4_blocks:
         - first_addr: '{{ ipPool_start }}'
@@ -77,16 +86,18 @@
         vlanname: '{{ item | string }}'
         state: '{{ vlanG_state }}'
       loop: '{{ vlanGroup_list }}'
+      ignore_errors: True
       tags: ['network','vlanG']
     
     - name: Configure vNIC template A
       cisco.ucs.ucs_vnic_template:
         <<: *ucsm_login
+        org_dn: "{{ org_dn }}"
         name: '{{ vnicPri }}'
         fabric: A
         mac_pool: '{{ macPoolA }}'
-        #redundancy_type: primary
-        #peer_redundancy_template: '{{ vnicSec }}'
+        redundancy_type: primary
+        peer_redundancy_template: '{{ vnicSec }}'
         template_type: updating-template
         vlans_list: '{{ vlan_dict }}'
         state: '{{ vnicTempl_state }}'
@@ -95,19 +106,21 @@
     - name: Configure vNIC template B
       cisco.ucs.ucs_vnic_template:
         <<: *ucsm_login
+        org_dn: "{{ org_dn }}"
         name: '{{ vnicSec }}'
         fabric: B
         mac_pool: '{{ macPoolB }}'
-        #redundancy_type: secondary
-        #peer_redundancy_template: '{{ vnicPri }}'
-        template_type: updating-template
-        vlans_list: '{{ vlan_dict }}'
+        redundancy_type: secondary
+        peer_redundancy_template: '{{ vnicPri }}'
+        #template_type: updating-template
+        #vlans_list: '{{ vlan_dict }}'
         state: '{{ vnicTempl_state }}'
       tags: ["network"]
 
     - name:  Configure LAN Con Policy
       cisco.ucs.ucs_lan_connectivity:
         <<: *ucsm_login
+        org_dn: "{{ org_dn }}"
         name: '{{ lcp_name }}'
         vnic_list:
         - name: eth0
@@ -123,6 +136,7 @@
     - name: Configure Disk Group Policy
       cisco.ucs.ucs_disk_group_policy:
         <<: *ucsm_login
+        org_dn: "{{ org_dn }}"
         name: '{{ diskGPol_name }}'
         raid_level: stripe
         configuration_mode: automatic
@@ -132,6 +146,7 @@
     - name: Configure Storage Profile
       cisco.ucs.ucs_storage_profile:
         <<: *ucsm_login
+        org_dn: "{{ org_dn }}"
         name: '{{ stProf_name }}'
         local_luns:
         - name: Boot-LUN
@@ -143,6 +158,7 @@
     - name: Configure WWNN/WWPN 
       cisco.ucs.ucs_wwn_pool:
         <<: *ucsm_login
+        org_dn: "{{ org_dn }}"
         name: '{{ WWNNPool }}'
         purpose: node
         first_addr: '{{ WWNN_start }}'
@@ -153,6 +169,7 @@
     - name: Configure WWPN A
       cisco.ucs.ucs_wwn_pool:
         <<: *ucsm_login
+        org_dn: "{{ org_dn }}"
         name: '{{ WWPNPoolA }}'
         purpose: port
         order: sequential
@@ -164,6 +181,7 @@
     - name: Configure WWPN B
       cisco.ucs.ucs_wwn_pool:
         <<: *ucsm_login
+        org_dn: "{{ org_dn }}"
         name: '{{ WWPNPoolB }}'
         purpose: port
         order: sequential
@@ -175,6 +193,7 @@
     - name: Configure vHBA template A
       cisco.ucs.ucs_vhba_template:
         <<: *ucsm_login
+        org_dn: "{{ org_dn }}"
         name: '{{ vHBA_A }}'
         fabric: A
         vsan: default
@@ -187,6 +206,7 @@
     - name: Configure vHBA template B
       cisco.ucs.ucs_vhba_template:
         <<: *ucsm_login
+        org_dn: "{{ org_dn }}"
         name: '{{ vHBA_B }}'
         fabric: B
         vsan: default
@@ -199,6 +219,7 @@
     - name: Configure SAN Con Policy
       cisco.ucs.ucs_san_connectivity:
         <<: *ucsm_login
+        org_dn: "{{ org_dn }}"
         name: '{{ scp_name }}'
         wwnn_pool: '{{ WWNNPool }}'
         vhba_list:
@@ -217,11 +238,10 @@
         <<: *ucsm_login
         objects: "{{ item.objects }}"
         state: '{{ bp_state }}'
-        #when: item.objects is defined
-      with_items: "{{ ucs_boot_policies }}"
+      loop: "{{ ucs_boot_policies }}"
       tags: ["serverPol"]
     
-    - name: Add Server Maint Policy
+    - name: Server Maint Policy
       cisco.ucs.ucs_server_maintenance:
         <<: *ucsm_login
         name: '{{ mp_name }}'
@@ -253,6 +273,7 @@
     - name: Configure UUID address pool
       cisco.ucs.ucs_uuid_pool:
         <<: *ucsm_login
+        org_dn: "{{ org_dn }}"
         name: '{{ UUID_name }}'
         order: sequential
         first_uuid: '{{ UUID_start }}'
@@ -265,14 +286,14 @@
         <<: *ucsm_login
         objects: "{{ item.objects }}"  
         state: '{{ vMedia_state }}'
-      #when: item.objects is defined
-      with_items: "{{ ucs_vmedia_policies }}"
-    tags: ["serverPol"]
+      loop: "{{ ucs_vmedia_policies }}"
+      tags: ["serverPol"]
     
 #=============== Service Profile Creation & Association ======================== 
     - name: Configure SP Template
       cisco.ucs.ucs_service_profile_template:
         <<: *ucsm_login
+        org_dn: "{{ org_dn }}"
         name: '{{ spt_name }}'
         description:  Warning - SP Templ may be deleted/created multiple times.
         template_type: updating-template
@@ -295,6 +316,7 @@
       cisco.ucs.ucs_service_profile_from_template:
         <<: *ucsm_login
         #name: '{{ item }}'
+        org_dn: "{{ org_dn }}"
         name: '{{ sp_name }}'
         source_template: '{{ spt_name }}'
       #loop: '{{ sp_list }}'
@@ -315,19 +337,12 @@
       #retries: 3
       #delay: 1500
 
-    # - name: Configure Port Channels
-    #     ucs_managed_objects:
-    #       <<: *ucsm_login
-    #       objects: "{{ item.objects }}"
-    #     when: item.objects is defined
-    #     with_items: "{{ ucs_port_channels }}"
-    
-    # - name: Debug
-    #   ansible.builtin.debug:
-    #     msg:  '{{ vMediaName[1] }}'
-    #     #msg: "{{ vlan_dict }}"
-    #   when: debug == True
-    
-
-      
-        
+    - name: Configure Port Channels
+      ucs_managed_objects:
+        <<: *ucsm_login
+        objects: "{{ item.objects }}"
+        state: '{{ netpc_state }}'
+      when: item.objects is defined
+      with_items: "{{ ucs_port_channels }}"
+      tags: ["uplinks"]
+            
